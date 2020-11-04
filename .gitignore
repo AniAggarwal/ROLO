@@ -1,0 +1,3 @@
+# .idea/ files from PyCharm to ignore according to JetBrains' docs
+**/.idea/workspace.xml
+**/.idea/tasks.xml
