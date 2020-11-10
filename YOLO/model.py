@@ -1,5 +1,6 @@
 import torch
-import torch.nn as nn
+from torch import nn
+
 
 # in format "layer type": (details, more_details)
 # "Conv": (square kernel size, filter count, stride, padding)
