@@ -1,6 +1,6 @@
 import torch
-from torch import nn
-from utils import intersection_over_union
+import torch.nn as nn
+from YOLO.utils import intersection_over_union
 
 
 class YoloLoss(nn.Module):
@@ -23,19 +23,30 @@ class YoloLoss(nn.Module):
 
     def forward(self, predictions, target):
         predictions = predictions.reshape(-1, self.S, self.S, self.C + 5 * self.B)
-        ious = []
+        ious_list = []
 
         # 0-19 for classes, 20 is prob obj1, 21-24 -> (x,y,w,h) obj1, 25 is prob obj2, 26-30 -> (x,y,w,h) obj2
         for box in range(self.B):
-            ious.append(
-                intersection_over_union(
+            iou = intersection_over_union(
                     predictions[..., self.C + 1 + 5 * box : self.C + 5 + 5 * box],
                     target[..., self.C + 1 :],
                 )
-            )
+            print("\npred in to iou func:", predictions[..., self.C + 1 + 5 * box : self.C + 5 + 5 * box].shape)
+            print("\ntargets in to iou func:", target[..., self.C + 1 :].shape)
+            print("\niou.shape:", iou.shape)
+            ious_list.append(iou)
 
-        # ious.shape = (B, 1)
-        ious = torch.cat([iou.unsqueeze(0) for iou in ious], dim=0)
+        # TODO shape of ious is off
+        # ious.shape = (batches, B, S, S, 1)
+        ious = torch.stack(ious_list, dim=1)
+
+        ### OLD ###
+        # ious.shape = (batches, B)
+        # ious = torch.cat([iou.unsqueeze(0) for iou in ious], dim=0)
+        # print("\nious.shape:", ious.shape)
+        ### OLD ###
+
+
         # find the largest iou, the best prediction; returns max, argmax
         iou_max, best_box_ind = torch.max(ious, dim=0)
 
@@ -47,7 +58,7 @@ class YoloLoss(nn.Module):
         # predictions.shape = (batches, S, S, C + 5 * B)
         # target.shape = (batches, S, S, C + 5)
         # exists.shape = (batches, S, S, 1), where last dim is 0 or 1 depending on existence
-        # ious.shape = (B, 1)
+        # ious.shape = (batches, B)
 
         # ====================== #
         #         Losses         #
@@ -80,6 +91,10 @@ class YoloLoss(nn.Module):
             no_obj_loss += self.mse(pred_no_obj, target_no_obj)
 
             # only calculate for responsible/best box
+            print("\nbox:", box)
+            print("best_box_ind:", best_box_ind.shape)
+            print("best_box_ind last:", best_box_ind[..., 0])
+            # TODO broken:
             if box != best_box_ind:
                 continue
 
